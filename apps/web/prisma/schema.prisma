@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- AUTH & USER MANAGEMENT ---
+model User {
+  id           String   @id @default(uuid())
+  matricNumber String   @unique @map("matric_number")
+  password     String
+  role         String   @default("STUDENT") // Options: STUDENT, STAFF, ADMIN
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+// --- PORTAL MONITORING ---
+model PushSubscription {
+  id                String   @id @default(uuid())
+  matricNumber      String?  @map("matric_number")
+  department        String?
+  level             String?
+  subscription      Json     
+  notificationTypes String[] @default([]) @map("notification_types")
+  subscribedAt      DateTime @default(now()) @map("subscribed_at")
+  isActive          Boolean  @default(true) @map("is_active")
+
+  @@index([matricNumber])
+  @@index([isActive])
+  @@map("push_subscriptions")
+}
+
+model NotificationLog {
+  id             String   @id @default(uuid())
+  title          String
+  body           String
+  url            String?
+  sentAt         DateTime @default(now()) @map("sent_at")
+  recipientCount Int      @default(0) @map("recipient_count")
+  triggerSource  String   @map("trigger_source")
+
+  @@map("notification_logs")
+}
+
+model PortalState {
+  id          String   @id @default(uuid())
+  pageKey     String   @unique @map("page_key")
+  lastHash    String   @map("last_hash")
+  lastChecked DateTime @updatedAt @map("last_checked")
+
+  @@map("portal_states")
+}

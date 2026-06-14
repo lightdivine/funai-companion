@@ -1,0 +1,34 @@
+{
+  "name": "funai-companion",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "@prisma/extension-accelerate": "^3.0.1",
+    "next": "^14.2.35",
+    "pg": "^8.21.0",
+    "prisma": "^7.8.0",
+    "turbo": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/pg": "^8.20.0",
+    "dotenv": "^17.4.2",
+    "tsx": "^4.19.3"
+  },
+  "prisma": {
+    "seed": "tsx apps/web/prisma/seed.ts"
+  }
+}
