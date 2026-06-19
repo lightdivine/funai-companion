@@ -1,7 +1,7 @@
 {
   "name": "funai-companion",
   "private": true,
-  "packageManager": "pnpm@10.8.2",
+  "packageManager": "pnpm@10.0.0",
   "workspaces": [
     "apps/*",
     "packages/*"
