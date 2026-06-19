@@ -1,185 +1,237 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from 'react';
 
-export default function PublicHomePage() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+interface Pack {
+  id: string;
+  title: string;
+  price: number;
+  priceLabel: string;
+  description: string;
+  badge?: string;
+  emoji: string;
+}
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    // Silent authentication/verification or routing to student onboarding occurs here
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
-  };
+declare global {
+  interface Window {
+    PaystackPop: {
+      setup: (options: {
+        key: string;
+        email: string;
+        amount: number;
+        currency: string;
+        ref: string;
+        callback: (response: { reference: string }) => void;
+        onClose: () => void;
+      }) => { openIframe: () => void };
+    };
+  }
+}
 
-  const quickLinks = [
-    { name: "Reprint PUTME Acknowledgement Slip", url: "https://portal.funai.edu.ng/Pages/Applications/PUTME/ReprintSlip.aspx" },
-    { name: "Check PUTME Screening Result", url: "https://portal.funai.edu.ng/Pages/Applications/PUTME/CheckScreeningResult.aspx" },
-    { name: "2025/2026 Supplementary Registration", url: "https://portal.funai.edu.ng/Pages/Applications/PUTME_SUPP/ScreeningForm.aspx" },
-    { name: "Apply for PG Programme", url: "https://portal.funai.edu.ng/modules/PG/applications/PGApplicationLogin.aspx" },
-    { name: "Work and Study Program (WASP)", url: "#" },
+export default function SalesPage() {
+  const [email, setEmail] = useState('');
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [selectedPack, setSelectedPack] = useState<Pack | null>(null);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const packs: Pack[] = [
+    {
+      id: 'jamb-pack',
+      title: 'JAMB Past Questions 2015-2024',
+      price: 150000,
+      priceLabel: '₦1,500',
+      description: 'All 4 subjects with answers and clear explanations included completely.',
+      emoji: '📚',
+    },
+    {
+      id: 'funai-pack',
+      title: 'FUNAI POST-UTME Past Questions',
+      price: 100000,
+      priceLabel: '₦1,000',
+      description: '2018-2024 all years covered plus full institutional marking scheme.',
+      emoji: '🦅',
+    },
+    {
+      id: 'combo-pack',
+      title: 'COMBO PACK — Best Value 🔥',
+      price: 200000,
+      priceLabel: '₦2,000',
+      description: 'JAMB + FUNAI complete resource bundle. Maximize your admission chances.',
+      badge: 'Most Popular',
+      emoji: '⚡',
+    },
   ];
 
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://js.paystack.co/v1/inline.js';
+    script.async = true;
+    script.onload = () => setScriptLoaded(true);
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  const handleBuyClick = (pack: Pack) => {
+    setErrorMessage('');
+    setSelectedPack(pack);
+    setShowEmailModal(true);
+  };
+
+  const executePayment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !selectedPack || !scriptLoaded) return;
+
+    setShowEmailModal(false);
+    const reference = 'TX-' + Math.floor(Math.random() * 1000000000 + 1);
+
+    const handler = window.PaystackPop.setup({
+      key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
+      email: email,
+      amount: selectedPack.price,
+      currency: 'NGN',
+      ref: reference,
+      callback: function (response) {
+        window.location.href = `/download?ref=${response.reference}&pack=${selectedPack.id}`;
+      },
+      onClose: function () {
+        setErrorMessage('Payment cancelled. Try again.');
+      },
+    });
+
+    handler.openIframe();
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col selection:bg-[#1B5E20] selection:text-white">
-      {/* Hero Section with Drone Video Background */}
-      <section className="relative h-screen w-full flex flex-col items-center justify-center overflow-hidden">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          poster="/images/campus-poster.jpg"
-          className="absolute z-10 w-auto min-w-full min-h-full max-w-none object-cover"
-        >
-          <source src="/videos/funai-campus-drone.mp4" type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
-        
-        {/* Dark High-Contrast Overlay */}
-        <div className="absolute z-20 inset-0 bg-black/60 backdrop-blur-[1px]" />
-
-        {/* Hero Overlay Content */}
-        <div className="relative z-30 text-center px-4 max-w-4xl mx-auto flex flex-col items-center flex-grow justify-center">
-          {/* Emblem Wrapper */}
-          <div className="mb-6 w-24 h-24 bg-white/95 rounded-full flex items-center justify-center shadow-xl border-2 border-[#1B5E20] animate-fade-in p-2">
-            <span className="text-[#1B5E20] font-black text-2xl tracking-tighter">FUNAI</span>
-          </div>
-          
-          <h1 className="text-white text-2xl md:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight max-w-3xl drop-shadow-md">
-            Alex Ekwueme Federal University, Ndufu-Alike
-          </h1>
-          <p className="text-emerald-400 text-lg md:text-2xl font-semibold mt-3 tracking-wide drop-shadow">
-            Student Companion Portal
-          </p>
-        </div>
-
-        {/* Animated Scroll Indicator */}
-        <div className="relative z-30 pb-8 animate-bounce">
-          <a href="#portal-content" className="text-white/80 hover:text-white transition-colors duration-200">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-            </svg>
-          </a>
-        </div>
-      </section>
-
-      {/* Main Interactive Portal Layout Area */}
-      <main id="portal-content" className="w-full max-w-7xl mx-auto px-4 py-12 md:py-20 flex-grow grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 scroll-mt-6">
-        
-        {/* Left Column: Quick Access Resource Board */}
-        <div className="lg:col-span-7 flex flex-col justify-center space-y-6 order-2 lg:order-1">
-          <div className="border-l-4 border-[#1B5E20] pl-4 mb-2">
-            <h2 className="text-2xl font-bold tracking-tight text-slate-800">
-              Portal Quick Access Links
-            </h2>
-            <p className="text-sm text-slate-500 mt-1">
-              Direct secure paths to official FUNAI application engines.
-            </p>
+    <div className="min-h-screen bg-neutral-100 flex justify-center items-start antialiased selection:bg-green-200">
+      <main className="w-full max-width-[480px] min-h-screen bg-white shadow-2xl flex flex-col justify-between px-5 py-6 mx-auto" style={{ maxWidth: '480px' }}>
+        <div>
+          {/* Header */}
+          <div className="text-center mt-4 mb-8">
+            <h1 className="text-2xl font-black text-neutral-900 tracking-tight">Academic Access Hub</h1>
+            <p className="text-xs text-neutral-500 font-medium mt-1">Instant Direct PDF Download Mapped Instantly</p>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 w-full">
-            {quickLinks.map((link, index) => (
-              <a
-                key={index}
-                href={link.url}
-                target={link.url !== "#" ? "_blank" : "_self"}
-                rel="noopener noreferrer"
-                className="group flex items-center justify-between p-4 bg-white hover:bg-[#1B5E20]/5 rounded-xl border border-slate-200 shadow-sm transition-all duration-200 hover:border-[#1B5E20]/40"
-              >
-                <div className="flex items-center space-x-4 pr-2">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#1B5E20]/10 text-[#1B5E20] group-hover:bg-[#1B5E20] group-hover:text-white flex items-center justify-center transition-all duration-200 font-bold">
-                    {index + 1}
-                  </div>
-                  <span className="text-slate-700 group-hover:text-slate-900 font-medium text-sm md:text-base transition-colors duration-150">
-                    {link.name}
+          {errorMessage && (
+            <div className="mb-6 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs font-bold rounded">
+              {errorMessage}
+            </div>
+          )}
+
+          {/* Cards Stack */}
+          <div className="space-y-5">
+            {packs.map((pack) => (
+              <div key={pack.id} className={`relative border-2 rounded-xl p-5 transition-all bg-white ${pack.badge ? 'border-green-600 ring-1 ring-green-600/30' : 'border-neutral-200'}`}>
+                {pack.badge && (
+                  <span className="absolute -top-3 right-4 bg-green-700 text-white font-black text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm">
+                    {pack.badge}
                   </span>
+                )}
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl mt-0.5" role="img" aria-label="pack-icon">{pack.emoji}</span>
+                  <div>
+                    <h3 className="font-bold text-sm text-neutral-900 leading-tight">{pack.title}</h3>
+                    <p className="text-xs text-neutral-600 mt-1 leading-relaxed">{pack.description}</p>
+                  </div>
                 </div>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400 group-hover:text-[#1B5E20] transform group-hover:translate-x-1 transition-all duration-150 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </a>
+                <div className="mt-5 flex items-center justify-between border-t border-neutral-100 pt-4">
+                  <div>
+                    <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider block">Price</span>
+                    <span className="text-xl font-black text-neutral-900">{pack.priceLabel}</span>
+                  </div>
+                  <button
+                    onClick={() => handleBuyClick(pack)}
+                    disabled={!scriptLoaded}
+                    className="bg-[#1B5E20] hover:bg-green-800 disabled:bg-neutral-300 text-white font-bold text-xs px-4 py-2.5 rounded-lg tracking-wide shadow-md active:scale-95 transition-all"
+                  >
+                    Buy Now — Instant Download
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
-        </div>
 
-        {/* Right Column: High-Security Identity Terminal */}
-        <div className="lg:col-span-5 flex flex-col justify-center order-1 lg:order-2">
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-6 md:p-8 w-full backdrop-blur-sm">
-            <div className="text-center mb-6">
-              <h3 className="text-xl font-bold text-slate-800">Student Identity Terminal</h3>
-              <p className="text-xs text-slate-400 mt-1">Sign in to manage offline profiles and configurations</p>
-            </div>
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                  Username / Matric Number
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g., FUNAI/202X/XXXXX"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1B5E20]/20 focus:border-[#1B5E20] transition-all duration-150 text-sm placeholder-slate-400 text-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                  Portal Password
-                </label>
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1B5E20]/20 focus:border-[#1B5E20] transition-all duration-150 text-sm placeholder-slate-400 text-slate-800"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full mt-2 py-3.5 bg-[#1B5E20] hover:bg-[#154718] disabled:bg-slate-300 text-white font-semibold rounded-xl tracking-wide transition-all duration-150 shadow-md flex items-center justify-center text-sm active:scale-[0.99]"
-              >
-                {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  "Secure Authenticate"
-                )}
-              </button>
-            </form>
-
-            <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between text-xs font-medium px-1">
-              <a href="#" className="text-[#1B5E20] hover:underline transition-all">Verify Account</a>
-              <span className="text-slate-300">|</span>
-              <a href="#" className="text-slate-500 hover:text-slate-700 transition-all">Locked Account? Recover</a>
-            </div>
-          </div>
-        </div>
-      </main>
-
-      {/* High-Accessibility Institutional Footer Bar */}
-      <footer className="w-full bg-slate-900 border-t border-slate-800 text-slate-400 py-6 text-sm">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center space-x-1 font-medium tracking-tight">
-            <span>Support Hotline:</span>
-            <a href="tel:08139833300" className="text-white hover:text-emerald-400 font-bold transition-colors">
-              08139833300
+          {/* Free Sample Gateway */}
+          <div className="mt-6 border border-dashed border-green-300 bg-green-50/40 rounded-xl p-4 text-center">
+            <p className="text-xs font-medium text-neutral-700">Want to inspect the content structure first?</p>
+            <a href="/free-sample" className="text-xs font-bold text-[#1B5E20] underline inline-block mt-1 hover:text-green-800">
+              Download Free Preview Sample Here 📄
             </a>
           </div>
-          <div className="text-xs text-center md:text-right text-slate-500 font-normal">
-            Copyright © 2026 Alex Ekwueme Federal University, Ndufu-Alike. All institutional rights preserved.
+
+          {/* Trust Footprint */}
+          <div className="mt-8 bg-neutral-50 rounded-xl p-4 border border-neutral-100 space-y-2.5">
+            <div className="flex items-center gap-2 text-xs font-semibold text-neutral-800">
+              <span className="text-green-600">✅</span> <span>Instant direct download after payment processing</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-semibold text-neutral-800">
+              <span className="text-green-600">✅</span> <span>WhatsApp support channel line: 080XXXXXXXX</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-semibold text-neutral-800">
+              <span className="text-green-600">✅</span> <span>100% complete with full verifiable answer keys</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-semibold text-neutral-800">
+              <span className="text-green-600">✅</span> <span>Over 200 high-tier local students using this model</span>
+            </div>
+          </div>
+
+          {/* Testimonial */}
+          <div className="mt-6 border border-neutral-200/60 rounded-xl p-4 bg-white italic shadow-sm">
+            <p className="text-xs text-neutral-600 leading-relaxed">
+              &ldquo;The POST-UTME solutions saved me days of unnecessary hunting. Exactly matches the curriculum schema.&rdquo;
+            </p>
+            <span className="text-[10px] font-bold text-neutral-400 block mt-2 not-italic uppercase tracking-wide">— Chioma, Pre-Admission Lead</span>
           </div>
         </div>
-      </footer>
+
+        {/* Footer */}
+        <footer className="text-center mt-12 pt-4 border-t border-neutral-100">
+          <p className="text-[11px] font-bold text-neutral-500">
+            Questions? <a href="https://wa.me/2348000000000" className="text-[#1B5E20] underline font-extrabold">WhatsApp Support Channel</a>
+          </p>
+        </footer>
+      </main>
+
+      {/* Input Overlay Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-xl max-w-sm w-full p-5 shadow-2xl border border-neutral-100">
+            <h3 className="font-bold text-neutral-900 text-base">Delivery Context Confirmed</h3>
+            <p className="text-xs text-neutral-500 mt-1">Input your active email address where download vouchers will be stored.</p>
+            <form onSubmit={executePayment} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-neutral-400 tracking-wider mb-1">Email Address</label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="student@domain.com"
+                  className="w-full border border-neutral-200 rounded-lg p-2.5 text-sm font-medium focus:outline-hidden focus:ring-2 focus:ring-green-600 text-neutral-900"
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowEmailModal(false)}
+                  className="w-1/2 border border-neutral-200 text-neutral-700 font-bold text-xs py-2.5 rounded-lg active:scale-95 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 bg-[#1B5E20] hover:bg-green-800 text-white font-bold text-xs py-2.5 rounded-lg active:scale-95 transition-all shadow-md"
+                >
+                  Proceed to Pay
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

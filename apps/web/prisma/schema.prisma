@@ -1,55 +1,547 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "postgresql"
 }
 
-// --- AUTH & USER MANAGEMENT ---
-model User {
-  id           String   @id @default(uuid())
-  matricNumber String   @unique @map("matric_number")
-  password     String
-  role         String   @default("STUDENT") // Options: STUDENT, STAFF, ADMIN
-  createdAt    DateTime @default(now()) @map("created_at")
-
-  @@map("users")
+generator client {
+  provider = "prisma-client-js"
 }
 
-// --- PORTAL MONITORING ---
+// ==========================================
+// SHARED & SYSTEM ENUMS
+// ==========================================
+
+enum ContentStatus {
+  PENDING
+  APPROVED
+  REMOVED
+}
+
+enum AmbassadorRole {
+  DEPARTMENT_REP
+  LEVEL_REP
+  GENERAL
+}
+
+enum ListingType {
+  SALE
+  FREE
+  WANTED
+  LOST
+  FOUND
+  LODGE
+  ROOMMATE
+  RIDE
+}
+
+enum EventCategory {
+  SUG
+  DEPARTMENTAL
+  FELLOWSHIP
+  SOCIAL
+  SPORTS
+  CULTURAL
+  ACADEMIC
+}
+
+enum ATMStatus {
+  HAS_CASH
+  NO_CASH
+  NETWORK_ISSUE
+  ATM_DOWN
+}
+
+enum PowerStatus {
+  ON
+  OFF
+}
+
+enum SafetyCategory {
+  HARASSMENT
+  THEFT
+  FACILITY_ISSUE
+  SUSPICIOUS_PERSON
+  OTHER
+}
+
+enum PQType {
+  POSTUTME
+  DEPARTMENTAL
+  JAMB
+  WAEC
+  NECO
+}
+
+enum OpportunityType {
+  INTERNSHIP
+  SIWES
+  PARTTIME
+  FULLTIME
+  VOLUNTEER
+}
+
+enum FeedbackType {
+  BUG
+  FEATURE
+  GENERAL
+}
+
+// ==========================================
+// COMMERCE MODELS
+// ==========================================
+
+model Purchase {
+  id            String   @id @default(uuid())
+  email         String
+  packId        String
+  reference     String   @unique
+  amountPaid    Int
+  downloadToken String   @unique
+  expiresAt     DateTime
+  downloadCount Int      @default(0)
+  createdAt     DateTime @default(now())
+}
+
+model PackFile {
+  id        String @id @default(uuid())
+  packId    String
+  fileName  String
+  fileUrl   String
+  sortOrder Int
+
+  @@index([packId])
+}
+
+model Lead {
+  id           String   @id @default(uuid())
+  whatsapp     String
+  interestedIn String
+  converted    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+model PastQuestionPack {
+  id       String   @id
+  title    String
+  schoolId String?
+  price    Int
+  fileUrls String[]
+  isActive Boolean  @default(true)
+
+  @@index([schoolId])
+}
+
+// ==========================================
+// MULTI-TENANT CONFIGURATION
+// ==========================================
+
+model School {
+  id             String   @id @default(uuid())
+  name           String
+  shortName      String
+  slug           String   @unique
+  subdomain      String   @unique
+  logoUrl        String?
+  coverImageUrl  String?
+  primaryColor   String   @default("#1B5E20")
+  secondaryColor String   @default("#FFFFFF")
+  state          String
+  city           String
+  lat            Float?
+  lng            Float?
+  portalUrl      String
+  wifiNetworks   String[] @default([])
+  isActive       Boolean  @default(true)
+  isVerified     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+}
+
+model Ambassador {
+  id          String         @id @default(uuid())
+  schoolId    String
+  anonymousId String
+  department  String
+  level       Int
+  role        AmbassadorRole
+  permissions String[]
+  isActive    Boolean        @default(true)
+  assignedAt  DateTime       @default(now())
+
+  @@index([schoolId])
+  @@index([anonymousId])
+}
+
+// ==========================================
+// NOTIFICATION PIPELINES
+// ==========================================
+
 model PushSubscription {
   id                String   @id @default(uuid())
-  matricNumber      String?  @map("matric_number")
+  anonymousId       String   @unique
+  matricNumber      String?
   department        String?
-  level             String?
-  subscription      Json     
-  notificationTypes String[] @default([]) @map("notification_types")
-  subscribedAt      DateTime @default(now()) @map("subscribed_at")
-  isActive          Boolean  @default(true) @map("is_active")
+  level             Int?
+  schoolSlug        String
+  subscription      Json
+  notificationTypes String[]
+  isActive          Boolean  @default(true)
+  subscribedAt      DateTime @default(now())
+  lastSeenAt        DateTime @default(now())
 
-  @@index([matricNumber])
-  @@index([isActive])
-  @@map("push_subscriptions")
+  @@index([anonymousId])
 }
 
 model NotificationLog {
   id             String   @id @default(uuid())
   title          String
   body           String
-  url            String?
-  sentAt         DateTime @default(now()) @map("sent_at")
-  recipientCount Int      @default(0) @map("recipient_count")
-  triggerSource  String   @map("trigger_source")
-
-  @@map("notification_logs")
+  url            String
+  triggerSource  String
+  recipientCount Int
+  sentAt         DateTime @default(now())
 }
 
 model PortalState {
-  id          String   @id @default(uuid())
-  pageKey     String   @unique @map("page_key")
-  lastHash    String   @map("last_hash")
-  lastChecked DateTime @updatedAt @map("last_checked")
+  id          String    @id @default(uuid())
+  pageKey     String    @unique
+  pageUrl     String
+  lastHash    String
+  lastChecked DateTime  @default(now())
+  lastChanged DateTime?
+}
 
-  @@map("portal_states")
+// ==========================================
+// COMMUNITY UTILITIES
+// ==========================================
+
+model Confession {
+  id          String        @id @default(uuid())
+  schoolId    String
+  content     String        @db.Text
+  anonymousId String
+  upvotes     Int           @default(0)
+  downvotes   Int           @default(0)
+  reportCount Int           @default(0)
+  status      ContentStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  comments    Comment[]
+
+  @@index([schoolId])
+  @@index([anonymousId])
+}
+
+model Comment {
+  id           String        @id @default(uuid())
+  confessionId String
+  content      String        @db.Text
+  anonymousId  String
+  reportCount  Int           @default(0)
+  status       ContentStatus @default(APPROVED)
+  createdAt    DateTime      @default(now())
+  confession   Confession    @relation(fields: [confessionId], references: [id], onDelete: Cascade)
+
+  @@index([anonymousId])
+}
+
+model Listing {
+  id              String        @id @default(uuid())
+  schoolId        String
+  type            ListingType
+  title           String
+  description     String        @db.Text
+  price           Int?
+  category        String
+  condition       String?
+  images          String[]
+  contactWhatsApp String
+  postedBy        String
+  status          ContentStatus @default(PENDING)
+  isFeatured      Boolean       @default(false)
+  featuredUntil   DateTime?
+  createdAt       DateTime      @default(now())
+
+  @@index([schoolId])
+}
+
+model StudyGroup {
+  id          String        @id @default(uuid())
+  schoolId    String
+  courseCode  String
+  title       String
+  description String        @db.Text
+  meetingInfo String
+  contactLink String
+  createdBy   String
+  status      ContentStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+
+  @@index([schoolId])
+}
+
+model Event {
+  id          String        @id @default(uuid())
+  schoolId    String
+  title       String
+  description String        @db.Text
+  category    EventCategory
+  date        DateTime
+  endDate     DateTime?
+  location    String
+  postedBy    String
+  status      ContentStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+
+  @@index([schoolId])
+}
+
+model Announcement {
+  id          String        @id @default(uuid())
+  schoolId    String
+  department  String
+  level       Int?
+  title       String
+  content     String        @db.Text
+  postedBy    String
+  status      ContentStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+
+  @@index([schoolId])
+}
+
+// ==========================================
+// CAMPUS OPERATIONS
+// ==========================================
+
+model Vendor {
+  id            String         @id @default(uuid())
+  schoolId      String
+  name          String
+  category      String
+  location      String
+  lat           Float?
+  lng           Float?
+  priceRange    String
+  openTime      String?
+  closeTime     String?
+  isFeatured    Boolean        @default(false)
+  featuredUntil DateTime?
+  createdAt     DateTime       @default(now())
+  reviews       VendorReview[]
+
+  @@index([schoolId])
+}
+
+model VendorReview {
+  id          String   @id @default(uuid())
+  vendorId    String
+  rating      Int
+  comment     String?  @db.Text
+  anonymousId String
+  createdAt   DateTime @default(now())
+  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([anonymousId])
+}
+
+model ATM {
+  id       String      @id @default(uuid())
+  schoolId String
+  bankName String
+  location String
+  lat      Float
+  lng      Float
+  reports  ATMReport[]
+
+  @@index([schoolId])
+}
+
+model ATMReport {
+  id          String    @id @default(uuid())
+  atmId       String
+  status      ATMStatus
+  anonymousId String
+  createdAt   DateTime  @default(now())
+  atm         ATM       @relation(fields: [atmId], references: [id], onDelete: Cascade)
+
+  @@index([anonymousId])
+}
+
+model PowerZone {
+  id       String        @id @default(uuid())
+  schoolId String
+  name     String
+  lat      Float?
+  lng      Float?
+  reports  PowerReport[]
+
+  @@index([schoolId])
+}
+
+model PowerReport {
+  id          String      @id @default(uuid())
+  zoneId      String
+  status      PowerStatus
+  anonymousId String
+  createdAt   DateTime    @default(now())
+  zone        PowerZone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@index([anonymousId])
+}
+
+// ==========================================
+// CAMPUS SAFETY
+// ==========================================
+
+model SafetyReport {
+  id          String        @id @default(uuid())
+  schoolId    String
+  category    SafetyCategory
+  description String        @db.Text
+  location    String?
+  anonymousId String
+  status      ContentStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+
+  @@index([schoolId])
+  @@index([anonymousId])
+}
+
+// ==========================================
+// ACADEMICS & PRE-ADMISSION (JAMB)
+// ==========================================
+
+model JAMBSubject {
+  id   String @id @default(uuid())
+  name String @unique
+  code String @unique
+}
+
+model JAMBQuestion {
+  id            String   @id @default(uuid())
+  subjectId     String
+  year          Int
+  questionText  String   @db.Text
+  optionA       String
+  optionB       String
+  optionC       String
+  optionD       String
+  correctAnswer String
+  explanation   String?  @db.Text
+  topic         String?
+  difficulty    String
+  isVerified    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([subjectId])
+}
+
+model PracticeSession {
+  id                String    @id @default(uuid())
+  anonymousId       String
+  subjects          String[]
+  totalQuestions    Int
+  answeredCount     Int
+  correctCount      Int
+  timeTakenSeconds  Int
+  answers           Json
+  score             Float
+  completedAt       DateTime?
+  createdAt         DateTime  @default(now())
+
+  @@index([anonymousId])
+}
+
+model PastQuestion {
+  id            String        @id @default(uuid())
+  schoolId      String
+  type          PQType
+  courseCode    String?
+  courseTitle   String?
+  level         Int?
+  session       String
+  fileUrl       String
+  uploadedBy    String
+  status        ContentStatus @default(PENDING)
+  downloadCount Int           @default(0)
+  isVerified    Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+
+  @@index([schoolId])
+}
+
+// ==========================================
+// GAMIFICATION & GROWTH
+// ==========================================
+
+model Points {
+  id          String   @id @default(uuid())
+  anonymousId String   @unique
+  schoolId    String
+  total       Int      @default(0)
+  level       Int      @default(1)
+  referrals   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([schoolId])
+  @@index([anonymousId])
+}
+
+model PointTransaction {
+  id          String   @id @default(uuid())
+  anonymousId String
+  action      String
+  points      Int
+  createdAt   DateTime @default(now())
+
+  @@index([anonymousId])
+}
+
+model Opportunity {
+  id             String          @id @default(uuid())
+  schoolId       String?
+  title          String
+  company        String
+  type           OpportunityType
+  description    String          @db.Text
+  applyLink      String
+  deadline       DateTime?
+  departments    String[]
+  postedBy       String
+  isSponsored    Boolean         @default(false)
+  sponsoredUntil DateTime?
+  status         ContentStatus   @default(PENDING)
+  createdAt      DateTime        @default(now())
+
+  @@index([schoolId])
+}
+
+// ==========================================
+// AUDITING & USER FEEDBACK
+// ==========================================
+
+model Feedback {
+  id          String        @id @default(uuid())
+  type        FeedbackType
+  message     String        @db.Text
+  screenshot  String?
+  page        String
+  deviceInfo  String
+  anonymousId String
+  status      ContentStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+
+  @@index([anonymousId])
+}
+
+// ==========================================
+// AUTH & USER MANAGEMENT (RESTORED OLD SCHEMA MATCH)
+// ==========================================
+
+model User {
+  id           String   @id @default(uuid())
+  matricNumber String   @unique @map("matric_number")
+  password     String
+  role         String   @default("STUDENT")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("users")
 }

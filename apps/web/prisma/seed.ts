@@ -22,6 +22,7 @@ async function main() {
 
   console.log("🌱 Seeding database directly via Prisma 7 Driver Adapter...");
 
+  // Seed Admin User
   const admin = await prisma.user.upsert({
     where: { matricNumber: "FUNAI/ADMIN/001" },
     update: {},
@@ -32,6 +33,7 @@ async function main() {
     },
   });
 
+  // Seed Student User
   const student = await prisma.user.upsert({
     where: { matricNumber: "FUNAI/STU/2026/0001" },
     update: {},
@@ -42,7 +44,20 @@ async function main() {
     },
   });
 
-  console.log("✅ Database seeded successfully!");
+  // Seed Monetized Product (Past Question Pack)
+  const pastQuestionPack = await prisma.pastQuestionPack.upsert({
+    where: { id: "funai-post-utme-2026" },
+    update: {},
+    create: {
+      id: "funai-post-utme-2026",
+      title: "FUNAI Comprehensive Post-UTME Past Questions (All Faculties)",
+      price: 2000, // Price in Naira (₦2,000)
+      fileUrls: ["https://your-storage-bucket.com/files/funai-post-utme.pdf"],
+      isActive: true,
+    },
+  });
+
+  console.log("✅ Database seeded successfully with Users and PQ Products!");
 }
 
 main()

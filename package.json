@@ -1,6 +1,7 @@
 {
   "name": "funai-companion",
   "private": true,
+  "packageManager": "npm@10.8.2",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -11,6 +12,7 @@
     "lint": "turbo run lint"
   },
   "dependencies": {
+    "@paystack/inline-js": "^2.22.9",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@prisma/extension-accelerate": "^3.0.1",

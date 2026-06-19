@@ -1,60 +1,53 @@
-import { withAuth } from "next-auth/middleware";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
 
-export default withAuth(
-  function middleware(req) {
-    const token = req.nextauth.token;
-    const isAuth = !!token;
-    const pathname = req.nextUrl.pathname;
-
-    // 1. If trying to access admin routes, check for ADMIN role
-    if (pathname.startsWith("/admin") && token?.role !== "ADMIN") {
-      return NextResponse.redirect(new URL("/", req.url));
-    }
-
-    // 2. If trying to access staff routes, check for STAFF or ADMIN role
-    if (pathname.startsWith("/staff") && token?.role !== "STAFF" && token?.role !== "ADMIN") {
-      return NextResponse.redirect(new URL("/", req.url));
-    }
-
-    // 3. If logged in and trying to access auth pages (like sign-in), redirect to dashboard
-    if (pathname.startsWith("/login") && isAuth) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
-    }
-
-    return NextResponse.next();
-  },
-  {
-    callbacks: {
-      // This ensures the middleware function above only runs if authorized check passes
-      authorized: ({ token, req }) => {
-        const pathname = req.nextUrl.pathname;
-        
-        // Define public routes that anyone can see without logging in
-        const isPublicRoute = 
-          pathname === "/" || 
-          pathname === "/login" || 
-          pathname.startsWith("/api/auth");
-
-        if (isPublicRoute) return true;
-
-        // If it's not a public route, user MUST have a valid token (be logged in)
-        return !!token;
-      },
-    },
-  }
-);
-
-// This controls exactly which paths Next.js sends through this guard
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
+     * Match all paths except API routes, static files, and asset optimizations:
+     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder assets
+     * - favicon.ico, manifest.json, icon.png (PWA/static assets)
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    '/((?!api|_next/static|_next/image|favicon.ico|manifest.json|icon.png|offline.html).*)',
   ],
 };
+
+export function middleware(req: NextRequest) {
+  const url = req.nextUrl;
+  const hostname = req.headers.get('host') || '';
+
+  // Allowed root domains for local development and production
+  const rootDomains = ['localhost:3000', 'yourapp.com', 'staging.yourapp.com'];
+  
+  let currentRootDomain = rootDomains.find((domain) => hostname.includes(domain));
+  
+  if (!currentRootDomain) {
+    return NextResponse.next();
+  }
+
+  const subdomain = hostname.replace(`.${currentRootDomain}`, '');
+
+  // If there is no subdomain (e.g., accessing yourapp.com directly), let it pass normally
+  if (subdomain === hostname || subdomain.trim() === '') {
+    return NextResponse.next();
+  }
+
+  // Bypass www cleanly
+  if (subdomain === 'www') {
+    return NextResponse.redirect(new URL(url.pathname, `https://${currentRootDomain}`));
+  }
+
+  // Multi-tenant rewrite routing
+  // Maps funai.yourapp.com/dashboard internally to apps/web/src/app/schools/funai/dashboard
+  const schoolSlug = subdomain.toLowerCase();
+  
+  const response = NextResponse.rewrite(
+    new URL(`/schools/${schoolSlug}${url.pathname}${url.search}`, req.url)
+  );
+
+  // Injects x-school-slug header so server components can catch the current school context instantly
+  response.headers.set('x-school-slug', schoolSlug);
+
+  return response;
+}
